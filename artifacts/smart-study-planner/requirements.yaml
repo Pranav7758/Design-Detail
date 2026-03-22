@@ -1,0 +1,15 @@
+packages:
+  "framer-motion": "For smooth page transitions, stagger animations, and interactive hover effects essential for the premium feel."
+  "recharts": "For rendering beautiful, responsive charts on the Progress and Dashboard pages."
+  "date-fns": "For formatting and manipulating dates in the Study Planner."
+  "clsx": "Utility for constructing className strings conditionally."
+  "tailwind-merge": "Utility for merging tailwind classes safely."
+
+images:
+  - path: "artifacts/smart-study-planner/public/images/hero-abstract.png"
+    description: "Deep matte black background with subtle, flowing, glowing gold abstract waves and particles, luxury technology aesthetic, 4k"
+    aspect_ratio: "16:9"
+
+notes:
+  - This is a frontend-only application utilizing React Context and LocalStorage for state management.
+  - The design strictly follows a luxury dark mode theme (Deep Black + Rich Gold).
