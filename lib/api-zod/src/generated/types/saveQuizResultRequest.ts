@@ -6,6 +6,10 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export interface HealthStatus {
-  status: string;
+export interface SaveQuizResultRequest {
+  userId: string;
+  score: number;
+  total: number;
+  percentage: number;
+  subject?: string;
 }

@@ -24,3 +24,10 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
+
+[userenv]
+
+[userenv.shared]
+VITE_SUPABASE_URL = "https://itlotvbhbmpwheehhayi.supabase.co"
+VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0bG90dmJoYm1wd2hlZWhoYXlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMDE5MDYsImV4cCI6MjA4OTc3NzkwNn0.dYAnhYu96heg49x3E48-zCNQXUWRStRjKPFolCc_LCA"
+SUPABASE_SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0bG90dmJoYm1wd2hlZWhoYXlpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDIwMTkwNiwiZXhwIjoyMDg5Nzc3OTA2fQ.s_e3c88_97Pw9uBm97suV7QW5l412Yb0QHs68fFDfY4"
