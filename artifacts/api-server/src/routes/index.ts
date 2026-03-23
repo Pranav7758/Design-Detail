@@ -4,9 +4,11 @@ import profileRouter from "./profile";
 import configRouter from "./config";
 import quizRouter from "./quiz";
 import sessionsRouter from "./sessions";
+import authRouter from "./auth";
 
 const router: IRouter = Router();
 
+router.use(authRouter);
 router.use(healthRouter);
 router.use(profileRouter);
 router.use(configRouter);

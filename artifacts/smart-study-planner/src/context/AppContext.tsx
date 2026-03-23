@@ -122,21 +122,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const signup = async (email: string, password: string, name: string) => {
     setAuthError(null);
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { name } },
-    });
-    if (error) throw new Error(error.message);
 
-    if (data.user) {
-      await api.upsertProfile({
-        userId: data.user.id,
-        supabaseId: data.user.id,
-        name,
-        email,
-      }).catch(() => {});
-    }
+    const apiBase = `${window.location.origin}${import.meta.env.BASE_URL}api`.replace(/\/\//g, '/');
+    const res = await fetch(`${apiBase}/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, name }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Signup failed');
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(error.message);
   };
 
   const logout = async () => {
