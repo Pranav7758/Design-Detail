@@ -226,8 +226,8 @@ export default function Progress() {
             </div>
           ) : (
             <div className="space-y-5 flex-1">
-              {subjectProgress.slice(0, 5).map((sub, i) => (
-                <div key={i}>
+              {subjectProgress.slice(0, 6).map((sub, i) => (
+                <div key={sub.name}>
                   <div className="flex justify-between text-sm mb-1.5">
                     <span className="text-white font-medium truncate pr-3 max-w-[150px]">{sub.name}</span>
                     <span className="text-muted-foreground shrink-0">{sub.progress}%</span>
@@ -309,6 +309,46 @@ export default function Progress() {
               <p className="text-xs text-muted-foreground mt-1">Total Correct</p>
             </div>
           </div>
+
+          {/* Per-subject quiz breakdown */}
+          {(() => {
+            const bySubject: Record<string, { attempts: number; scores: number[] }> = {};
+            quizResults.forEach(r => {
+              const sub = r.subject || 'General';
+              if (!bySubject[sub]) bySubject[sub] = { attempts: 0, scores: [] };
+              bySubject[sub].attempts++;
+              bySubject[sub].scores.push(Math.round(parseFloat(r.percentage)));
+            });
+            const subjects = Object.entries(bySubject).sort((a, b) => {
+              const aAvg = a[1].scores.reduce((s, v) => s + v, 0) / a[1].scores.length;
+              const bAvg = b[1].scores.reduce((s, v) => s + v, 0) / b[1].scores.length;
+              return bAvg - aAvg;
+            });
+            if (!subjects.length) return null;
+            return (
+              <div className="mt-6">
+                <h4 className="text-sm font-bold text-white mb-3">Per-Subject Quiz Performance</h4>
+                <div className="space-y-2">
+                  {subjects.map(([name, data]) => {
+                    const avg = Math.round(data.scores.reduce((s, v) => s + v, 0) / data.scores.length);
+                    return (
+                      <div key={name} className="flex items-center gap-3">
+                        <span className="text-xs text-white/60 w-36 truncate shrink-0">{name}</span>
+                        <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${avg >= 80 ? 'bg-green-500' : avg >= 60 ? 'bg-primary' : 'bg-red-500'}`}
+                            style={{ width: `${avg}%` }}
+                          />
+                        </div>
+                        <span className={`text-xs font-bold w-10 text-right shrink-0 ${avg >= 80 ? 'text-green-400' : avg >= 60 ? 'text-primary' : 'text-red-400'}`}>{avg}%</span>
+                        <span className="text-xs text-muted-foreground shrink-0">{data.attempts} {data.attempts === 1 ? 'quiz' : 'quizzes'}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
         </motion.div>
       )}
     </div>

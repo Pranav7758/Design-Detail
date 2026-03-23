@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrainCircuit, CalendarDays, TrendingUp, ArrowRight, Sparkles, X, ChevronDown, ChevronUp, BookOpen, GraduationCap } from 'lucide-react';
-import { curriculumData } from '@/lib/msbte-data';
+import { MSBTE_DATA as curriculumData } from '@/lib/msbte-data';
 
 type CurriculumSection = {
   type: 'diploma' | 'btech';
