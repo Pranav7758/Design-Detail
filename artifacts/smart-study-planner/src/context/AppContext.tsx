@@ -123,14 +123,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const signup = async (email: string, password: string, name: string) => {
     setAuthError(null);
 
-    const apiBase = `${window.location.origin}${import.meta.env.BASE_URL}api`.replace(/\/\//g, '/');
-    const res = await fetch(`${apiBase}/auth/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, name }),
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || 'Signup failed');
+    await api.signup({ email, password, name });
 
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw new Error(error.message);

@@ -14,6 +14,8 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  signup: (data: { email: string; password: string; name: string }) =>
+    apiFetch<any>("/auth/signup", { method: "POST", body: JSON.stringify(data) }),
   getProfile: (userId: string) => apiFetch<any>(`/profile?userId=${encodeURIComponent(userId)}`),
   upsertProfile: (data: any) => apiFetch<any>("/profile", { method: "POST", body: JSON.stringify(data) }),
   getConfig: (userId: string) => apiFetch<any>(`/config?userId=${encodeURIComponent(userId)}`),
