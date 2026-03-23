@@ -1,22 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DEMO_QUIZ_QUESTIONS } from '@/lib/data';
-import { Trophy, ArrowRight, RotateCcw, CheckCircle2, XCircle, Save } from 'lucide-react';
+import { getQuestionsForSubject, QuizQuestion } from '@/lib/quiz-questions';
+import { Trophy, ArrowRight, RotateCcw, CheckCircle2, XCircle, Save, BookOpen, ChevronRight, Plus } from 'lucide-react';
 import { useAppContext } from '@/context/AppContext';
 import { api } from '@/lib/api';
 
+type Phase = 'select' | 'quiz' | 'result';
+
 export default function Quiz() {
   const { user, config } = useAppContext();
+
+  const [phase, setPhase] = useState<Phase>('select');
+  const [selectedSubject, setSelectedSubject] = useState<string>('');
+  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [currentQ, setCurrentQ] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [score, setScore] = useState(0);
-  const [isFinished, setIsFinished] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [completedSubjects, setCompletedSubjects] = useState<Array<{ name: string; score: number; total: number; percentage: number }>>([]);
 
-  const question = DEMO_QUIZ_QUESTIONS[currentQ];
-  const total = DEMO_QUIZ_QUESTIONS.length;
+  const subjects = config?.subjects || [];
+  const total = questions.length;
+  const question = questions[currentQ];
+
+  const startQuiz = (subjectName: string) => {
+    const qs = getQuestionsForSubject(subjectName);
+    setSelectedSubject(subjectName);
+    setQuestions(qs);
+    setCurrentQ(0);
+    setSelectedOption(null);
+    setIsSubmitted(false);
+    setScore(0);
+    setSaved(false);
+    setPhase('quiz');
+  };
 
   const handleSubmit = () => {
     if (selectedOption === null) return;
@@ -32,27 +51,29 @@ export default function Quiz() {
       setSelectedOption(null);
       setIsSubmitted(false);
     } else {
-      setIsFinished(true);
+      const finalScore = selectedOption === question.correctAnswer ? score + (isSubmitted ? 0 : 1) : score;
+      const usedScore = isSubmitted ? score : finalScore;
+      setScore(usedScore);
+      setPhase('result');
     }
   };
 
-  const finalScore = isFinished
-    ? (selectedOption === question.correctAnswer ? score : score)
-    : score;
+  const usedScore = isSubmitted ? score : (selectedOption === question.correctAnswer ? score + 1 : score);
+  const percentage = total > 0 ? Math.round((usedScore / total) * 100) : 0;
 
-  const saveResult = async (finalScore: number) => {
+  const saveResult = async () => {
     if (!user?.id || saved) return;
     setIsSaving(true);
     try {
-      const percentage = Math.round((finalScore / total) * 100);
       await api.saveQuizResult({
         userId: user.id,
-        score: finalScore,
+        score: usedScore,
         total,
         percentage,
-        subject: config?.subjects?.[0]?.name || 'Computer Science Fundamentals',
+        subject: selectedSubject,
       });
       setSaved(true);
+      setCompletedSubjects(prev => [...prev, { name: selectedSubject, score: usedScore, total, percentage }]);
     } catch (e) {
       console.error('Failed to save quiz result', e);
     } finally {
@@ -60,50 +81,134 @@ export default function Quiz() {
     }
   };
 
-  const resetQuiz = () => {
-    setCurrentQ(0);
-    setSelectedOption(null);
-    setIsSubmitted(false);
-    setScore(0);
-    setIsFinished(false);
-    setSaved(false);
+  const getGrade = (pct: number) => {
+    if (pct >= 90) return { label: 'Excellent!', color: 'text-green-400' };
+    if (pct >= 75) return { label: 'Great Job!', color: 'text-primary' };
+    if (pct >= 60) return { label: 'Good Effort!', color: 'text-yellow-400' };
+    return { label: 'Keep Practicing!', color: 'text-red-400' };
   };
 
-  if (isFinished) {
-    const lastCorrect = selectedOption === question.correctAnswer;
-    const finalTotal = lastCorrect ? score + (isSubmitted ? 0 : 1) : score;
-    const usedScore = isSubmitted ? score : (selectedOption === question.correctAnswer ? score + 1 : score);
-    const percentage = Math.round((usedScore / total) * 100);
+  const grade = getGrade(percentage);
 
-    const getGrade = () => {
-      if (percentage >= 90) return { label: 'Excellent!', color: 'text-green-400' };
-      if (percentage >= 75) return { label: 'Great Job!', color: 'text-primary' };
-      if (percentage >= 60) return { label: 'Good Effort!', color: 'text-yellow-400' };
-      return { label: 'Keep Practicing!', color: 'text-red-400' };
-    };
-    const grade = getGrade();
+  const availableSubjectsForQuiz = subjects.filter(s =>
+    !completedSubjects.find(c => c.name === s.name)
+  );
 
+  if (phase === 'select') {
     return (
-      <div className="max-w-2xl mx-auto pt-10">
+      <div className="max-w-3xl mx-auto space-y-8 pt-4">
+        <div>
+          <h1 className="text-3xl font-display font-bold text-white mb-1">Daily Knowledge Check</h1>
+          <p className="text-muted-foreground">Select which subjects you studied today and take a quiz for each one.</p>
+        </div>
+
+        {completedSubjects.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-2xl p-5">
+            <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-400" /> Today's Completed Quizzes
+            </h3>
+            <div className="space-y-3">
+              {completedSubjects.map((cs, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm font-medium text-white">{cs.name}</span>
+                    <span className="text-xs text-muted-foreground ml-2">{cs.score}/{cs.total} correct</span>
+                  </div>
+                  <span className={`text-sm font-bold ${cs.percentage >= 80 ? 'text-green-400' : cs.percentage >= 60 ? 'text-yellow-400' : 'text-red-400'}`}>
+                    {cs.percentage}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {availableSubjectsForQuiz.length === 0 && completedSubjects.length > 0 ? (
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="glass-card rounded-3xl p-10 text-center">
+            <Trophy className="w-16 h-16 text-primary mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-white mb-2">All Done for Today!</h2>
+            <p className="text-muted-foreground mb-6">You've completed quizzes for all your subjects. Great work!</p>
+            <div className="grid grid-cols-2 gap-4 text-left max-w-xs mx-auto">
+              <div className="bg-primary/10 border border-primary/20 p-4 rounded-xl text-center">
+                <span className="text-2xl font-black text-primary">{completedSubjects.length}</span>
+                <p className="text-xs text-muted-foreground mt-1">Subjects Covered</p>
+              </div>
+              <div className="bg-green-500/10 border border-green-500/20 p-4 rounded-xl text-center">
+                <span className="text-2xl font-black text-green-400">
+                  {Math.round(completedSubjects.reduce((sum, s) => sum + s.percentage, 0) / completedSubjects.length)}%
+                </span>
+                <p className="text-xs text-muted-foreground mt-1">Avg Score</p>
+              </div>
+            </div>
+          </motion.div>
+        ) : (
+          <div className="space-y-3">
+            <h2 className="text-lg font-bold text-white">
+              {completedSubjects.length === 0 ? 'Your Subjects — Pick one to quiz:' : 'Remaining Subjects:'}
+            </h2>
+            {subjects.length === 0 ? (
+              <div className="glass-card rounded-2xl p-8 text-center">
+                <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                <p className="text-muted-foreground">Complete your setup to get subject-specific quizzes.</p>
+              </div>
+            ) : (
+              availableSubjectsForQuiz.map((subject, i) => (
+                <motion.button
+                  key={subject.code}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.06 }}
+                  onClick={() => startQuiz(subject.name)}
+                  className="w-full glass-card rounded-2xl p-5 text-left flex items-center justify-between gap-4 hover:border-primary/40 hover:bg-primary/5 transition-all group"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-sm shrink-0 group-hover:bg-primary/20 transition-colors">
+                      {subject.code.slice(-3)}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-white group-hover:text-primary transition-colors">{subject.name}</h3>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className={`text-xs px-2 py-0.5 rounded-full border ${
+                          subject.difficulty === 'Easy' ? 'border-green-500/30 text-green-400' :
+                          subject.difficulty === 'Medium' ? 'border-yellow-500/30 text-yellow-400' :
+                          'border-red-500/30 text-red-400'
+                        }`}>{subject.difficulty}</span>
+                        <span className="text-xs text-muted-foreground">10 questions</span>
+                      </div>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                </motion.button>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (phase === 'result') {
+    return (
+      <div className="max-w-2xl mx-auto pt-6">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="glass-card rounded-3xl p-10 text-center border-t-4 border-t-primary relative overflow-hidden"
+          className="glass-card rounded-3xl p-8 md:p-10 text-center border-t-4 border-t-primary relative overflow-hidden"
         >
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[200px] h-[200px] bg-primary/20 blur-[80px] rounded-full pointer-events-none"></div>
 
-          <Trophy className="w-20 h-20 text-primary mx-auto mb-4" />
-          <h2 className="text-4xl font-display font-bold text-white mb-1">Quiz Complete!</h2>
-          <p className={`text-xl font-bold mb-8 ${grade.color}`}>{grade.label}</p>
+          <Trophy className="w-16 h-16 text-primary mx-auto mb-4 relative z-10" />
+          <h2 className="text-3xl font-display font-bold text-white mb-1 relative z-10">{selectedSubject}</h2>
+          <p className={`text-lg font-bold mb-6 ${grade.color} relative z-10`}>{grade.label}</p>
 
-          <div className="flex justify-center items-end gap-2 mb-4">
+          <div className="flex justify-center items-end gap-2 mb-4 relative z-10">
             <span className="text-6xl font-black text-white">{percentage}%</span>
-            <span className="text-xl text-muted-foreground mb-2">Score</span>
+            <span className="text-lg text-muted-foreground mb-1">Score</span>
           </div>
 
-          <p className="text-muted-foreground mb-8">{usedScore} out of {total} questions correct</p>
+          <p className="text-muted-foreground mb-6 relative z-10">{usedScore} out of {total} correct</p>
 
-          <div className="grid grid-cols-2 gap-4 mb-8 text-left">
+          <div className="grid grid-cols-2 gap-4 mb-6 text-left relative z-10">
             <div className="bg-green-500/10 border border-green-500/20 p-4 rounded-2xl">
               <span className="text-green-400 font-black block text-3xl">{usedScore}</span>
               <span className="text-sm text-green-400/80">Correct</span>
@@ -114,30 +219,40 @@ export default function Quiz() {
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-3 relative z-10">
             {!saved && user?.id && (
               <button
-                onClick={() => saveResult(usedScore)}
-                disabled={isSaving || saved}
+                onClick={saveResult}
+                disabled={isSaving}
                 className="w-full py-3 rounded-xl bg-primary text-black font-bold flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] transition-all disabled:opacity-60"
               >
-                {isSaving ? (
-                  <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <><Save className="w-5 h-5" /> Save Result</>
-                )}
+                {isSaving ? <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" /> : <><Save className="w-5 h-5" /> Save Result</>}
               </button>
             )}
             {saved && (
-              <div className="flex items-center justify-center gap-2 text-green-400 text-sm py-2">
-                <CheckCircle2 className="w-5 h-5" /> Result saved to your progress
+              <div className="flex items-center justify-center gap-2 text-green-400 text-sm py-1">
+                <CheckCircle2 className="w-4 h-4" /> Saved to your progress
               </div>
             )}
+
+            {availableSubjectsForQuiz.length > 0 ? (
+              <button
+                onClick={() => setPhase('select')}
+                className="w-full py-3 rounded-xl bg-primary/10 border border-primary/20 text-primary font-bold flex items-center justify-center gap-2 hover:bg-primary/20 transition-all"
+              >
+                <Plus className="w-5 h-5" /> Quiz Another Subject
+              </button>
+            ) : (
+              <div className="py-2 text-center text-sm text-green-400">
+                All subjects completed for today! 🎉
+              </div>
+            )}
+
             <button
-              onClick={resetQuiz}
+              onClick={() => startQuiz(selectedSubject)}
               className="w-full py-3 rounded-xl border border-white/10 text-white font-medium flex items-center justify-center gap-2 hover:bg-white/5 transition-all"
             >
-              <RotateCcw className="w-5 h-5" /> Retake Quiz
+              <RotateCcw className="w-4 h-4" /> Retake This Quiz
             </button>
           </div>
         </motion.div>
@@ -146,16 +261,14 @@ export default function Quiz() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8 pt-4">
+    <div className="max-w-3xl mx-auto space-y-6 pt-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-display font-bold text-white">Daily Knowledge Check</h1>
-          <p className="text-muted-foreground text-sm">
-            {config?.subjects?.[0]?.name || 'Computer Science Fundamentals'}
-          </p>
+          <h1 className="text-2xl font-display font-bold text-white">Quiz: {selectedSubject}</h1>
+          <p className="text-muted-foreground text-sm">Answer carefully — results are saved to your progress</p>
         </div>
         <div className="text-right">
-          <span className="text-sm font-bold text-primary">Question {currentQ + 1} of {total}</span>
+          <span className="text-sm font-bold text-primary">Q {currentQ + 1}/{total}</span>
           <p className="text-xs text-muted-foreground">Score: {score}/{currentQ}</p>
         </div>
       </div>
@@ -178,27 +291,24 @@ export default function Quiz() {
           className="glass-card rounded-3xl p-6 md:p-10"
         >
           <div className="flex items-center gap-2 mb-6">
-            <span className="text-xs font-medium px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary">
-              Q{currentQ + 1}
-            </span>
+            <span className="text-xs font-medium px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary">Q{currentQ + 1}</span>
             <span className="text-xs text-muted-foreground">Multiple Choice</span>
           </div>
 
           <h2 className="text-xl md:text-2xl font-medium text-white leading-relaxed mb-8">
-            {question.question}
+            {question?.question}
           </h2>
 
           <div className="space-y-4">
-            {question.options.map((option, idx) => {
+            {question?.options.map((option, idx) => {
               const isSelected = selectedOption === idx;
               const isCorrect = isSubmitted && idx === question.correctAnswer;
               const isWrong = isSubmitted && isSelected && idx !== question.correctAnswer;
 
               let classes = 'w-full p-5 rounded-2xl border text-left transition-all font-medium flex items-center justify-between gap-4 ';
-
               if (!isSubmitted) {
                 classes += isSelected
-                  ? 'border-primary bg-primary/10 text-white gold-glow'
+                  ? 'border-primary bg-primary/10 text-white'
                   : 'border-white/10 hover:bg-white/5 text-muted-foreground hover:text-white hover:border-white/30';
               } else {
                 if (isCorrect) classes += 'border-green-500 bg-green-500/15 text-white';
@@ -239,7 +349,7 @@ export default function Quiz() {
                 className="mt-6 p-5 rounded-xl bg-primary/10 border border-primary/20 overflow-hidden"
               >
                 <span className="font-bold text-primary block mb-2">Explanation</span>
-                <span className="text-white/80 text-sm leading-relaxed">{question.explanation}</span>
+                <span className="text-white/80 text-sm leading-relaxed">{question?.explanation}</span>
               </motion.div>
             )}
           </AnimatePresence>
