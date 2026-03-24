@@ -21,8 +21,34 @@ export default function Quiz() {
   const [saved, setSaved] = useState(false);
   const [completedSubjects, setCompletedSubjects] = useState<Array<{ name: string; score: number; total: number; percentage: number }>>([]);
   const [finalScore, setFinalScore] = useState(0);
+  const [loadingToday, setLoadingToday] = useState(true);
 
   const subjects = config?.subjects || [];
+
+  // Load today's already-completed quizzes so they persist across refreshes
+  useEffect(() => {
+    if (!user?.id) { setLoadingToday(false); return; }
+    const today = new Date().toISOString().slice(0, 10);
+    api.getQuizResults(user.id).then(results => {
+      const todayResults = results.filter(r => {
+        const dateStr = (r.createdAt || r.created_at || '').slice(0, 10);
+        return dateStr === today;
+      });
+      // Deduplicate: keep only the latest attempt per subject today
+      const subjectMap: Record<string, { name: string; score: number; total: number; percentage: number }> = {};
+      todayResults.forEach(r => {
+        const key = r.subject || 'General';
+        subjectMap[key] = {
+          name: key,
+          score: r.score,
+          total: r.total,
+          percentage: Math.round(parseFloat(r.percentage)),
+        };
+      });
+      setCompletedSubjects(Object.values(subjectMap));
+    }).catch(() => {}).finally(() => setLoadingToday(false));
+  }, [user?.id]);
+
   const total = questions.length;
   const question = questions[currentQ];
 
@@ -96,11 +122,19 @@ export default function Quiz() {
   );
 
   if (phase === 'select') {
+    if (loadingToday) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="w-12 h-12 border-4 border-white/10 border-t-primary rounded-full animate-spin" />
+        </div>
+      );
+    }
+
     return (
       <div className="max-w-3xl mx-auto space-y-8 pt-4">
         <div>
           <h1 className="text-3xl font-display font-bold text-white mb-1">Daily Knowledge Check</h1>
-          <p className="text-muted-foreground">Select each subject you studied today and test your understanding.</p>
+          <p className="text-muted-foreground">Each subject quiz resets daily — your progress is saved automatically.</p>
         </div>
 
         {completedSubjects.length > 0 && (
