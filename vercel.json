@@ -1,6 +1,6 @@
 {
-  "buildCommand": "pnpm --filter @workspace/smart-study-planner run build",
-  "outputDirectory": "dist",
+  "buildCommand": "pnpm --filter @workspace/smart-study-planner run build && cp -r artifacts/smart-study-planner/dist ./frontend-dist",
+  "outputDirectory": "frontend-dist",
   "installCommand": "pnpm install",
   "framework": null
 }
