@@ -29,12 +29,16 @@ export default function Progress() {
   const totalHours = sessions.reduce((sum, s) => sum + parseFloat(s.hours || '0'), 0);
 
   const streakDays = useMemo(() => {
-    if (!sessions.length) return 0;
-    const dates = [...new Set(sessions.map(s => s.sessionDate))].sort().reverse();
+    const sessionDates = sessions.map(s => s.sessionDate).filter(Boolean);
+    const quizDates = quizResults.map(r => (r.createdAt || r.created_at || '').slice(0, 10)).filter(Boolean);
+    const allDates = [...new Set([...sessionDates, ...quizDates])].sort().reverse();
+    if (!allDates.length) return 0;
     let streak = 0;
     let prev = new Date();
-    for (const d of dates) {
+    prev.setHours(0, 0, 0, 0);
+    for (const d of allDates) {
       const cur = new Date(d);
+      cur.setHours(0, 0, 0, 0);
       const diffDays = Math.round((prev.getTime() - cur.getTime()) / (1000 * 60 * 60 * 24));
       if (diffDays <= 1) {
         streak++;
@@ -42,7 +46,7 @@ export default function Progress() {
       } else break;
     }
     return streak;
-  }, [sessions]);
+  }, [sessions, quizResults]);
 
   const weeklyChartData = useMemo(() => {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -75,24 +79,43 @@ export default function Progress() {
 
   const subjectProgress = useMemo(() => {
     if (!config?.subjects?.length) return [];
+
     const subjectHours: Record<string, number> = {};
     sessions.forEach(s => {
       if (s.subjectName) {
         subjectHours[s.subjectName] = (subjectHours[s.subjectName] || 0) + parseFloat(s.hours || '0');
       }
     });
+
+    const subjectQuizScores: Record<string, number[]> = {};
+    quizResults.forEach(r => {
+      const key = r.subject || '';
+      if (key) {
+        if (!subjectQuizScores[key]) subjectQuizScores[key] = [];
+        subjectQuizScores[key].push(parseFloat(r.percentage));
+      }
+    });
+
     return config.subjects.map(sub => {
       const studied = subjectHours[sub.name] || 0;
-      const target = sub.hours * 0.3;
-      const progress = Math.min(100, Math.round((studied / Math.max(target, 1)) * 100));
+      const target = Math.max(sub.hours * 0.3, 1);
+      const hoursProgress = Math.min(100, Math.round((studied / target) * 100));
+
+      const quizScores = subjectQuizScores[sub.name] || [];
+      const quizProgress = quizScores.length > 0
+        ? Math.round(quizScores.reduce((a, b) => a + b, 0) / quizScores.length)
+        : 0;
+
+      const progress = Math.min(100, Math.max(hoursProgress, quizProgress));
       return {
         name: sub.name,
         progress,
         studied: parseFloat(studied.toFixed(1)),
+        quizzesDone: quizScores.length,
         status: progress >= 80 ? 'excellent' : progress >= 50 ? 'good' : progress >= 25 ? 'warning' : 'danger',
       };
     });
-  }, [config, sessions]);
+  }, [config, sessions, quizResults]);
 
   const targetHoursPerSubject = config?.studySettings?.targetHours
     ? config.subjects?.length
@@ -244,7 +267,11 @@ export default function Progress() {
                       }`}
                     />
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-1">{sub.studied}h studied</p>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    {sub.studied > 0 ? `${sub.studied}h studied` : ''}
+                    {sub.studied > 0 && (sub as any).quizzesDone > 0 ? ' · ' : ''}
+                    {(sub as any).quizzesDone > 0 ? `${(sub as any).quizzesDone} quiz${(sub as any).quizzesDone > 1 ? 'zes' : ''} done` : sub.studied === 0 ? 'Not started' : ''}
+                  </p>
                 </div>
               ))}
             </div>
