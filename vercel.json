@@ -1,6 +1,6 @@
 {
   "buildCommand": "pnpm --filter @workspace/smart-study-planner run build",
-  "outputDirectory": "artifacts/smart-study-planner/dist/public",
+  "outputDirectory": "artifacts/smart-study-planner/dist",
   "installCommand": "pnpm install",
   "framework": null
 }
