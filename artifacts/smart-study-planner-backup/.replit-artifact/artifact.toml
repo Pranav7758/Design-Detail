@@ -1,5 +1,5 @@
 kind = "web"
-previewPath = "/"
+previewPath = "/old-backup/"
 title = "Smart Study Planner"
 version = "1.0.0"
 id = "artifacts/smart-study-planner"
@@ -11,8 +11,8 @@ version = "1.0.0"
 
 [[services]]
 name = "web"
-paths = [ "/" ]
-localPort = 20480
+paths = [ "/old-backup/" ]
+localPort = 20490
 
 [services.development]
 run = "pnpm --filter @workspace/smart-study-planner run dev"
@@ -27,5 +27,5 @@ from = "/*"
 to = "/index.html"
 
 [services.env]
-PORT = "20480"
-BASE_PATH = "/"
+PORT = "20490"
+BASE_PATH = "/old-backup/"
